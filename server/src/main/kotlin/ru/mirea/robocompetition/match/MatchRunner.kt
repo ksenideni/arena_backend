@@ -33,18 +33,18 @@ class MatchRunner<S, M>(
         var state = scenario.init(sessions.keys.toList())
 
         sendMatchStartedToAll(state)
-        listeners.forEach { it.onMatchStarted(state) }
+        listeners.forEach { it.onMatchStarted(matchId, state) }
 
         while (active.isNotEmpty() && !scenario.isFinished(state)) {
             sendUpdateToAll(state)
             val moves = collectMoves()
             state = scenario.applyMoves(state, moves)
-            listeners.forEach { it.onRoundComplete(state) }
+            listeners.forEach { it.onRoundComplete(matchId, state) }
         }
 
         val result = scenario.getResult(state, matchId)
         sendMatchOverToAll(result)
-        listeners.forEach { it.onMatchOver(result) }
+        listeners.forEach { it.onMatchOver(matchId, result) }
         sessions.values.forEach { it.close() }
         return result
     }

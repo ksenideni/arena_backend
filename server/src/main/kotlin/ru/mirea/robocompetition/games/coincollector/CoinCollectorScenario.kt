@@ -1,6 +1,9 @@
 package ru.mirea.robocompetition.games.coincollector
 
 import ru.mirea.robocompetition.config.GameConfig
+import ru.mirea.robocompetition.events.BotView
+import ru.mirea.robocompetition.events.ItemView
+import ru.mirea.robocompetition.events.MatchSnapshot
 import ru.mirea.robocompetition.match.GameScenario
 import ru.mirea.robocompetition.model.BotState
 import ru.mirea.robocompetition.model.GameState
@@ -23,7 +26,11 @@ class CoinCollectorScenario(
     private val random: Random = Random.Default
 ) : GameScenario<GameState, Offset> {
 
-    override val id: String = "collector"
+    override val id: String = ID
+
+    companion object {
+        const val ID = "collector"
+    }
 
     override val defaultMove: Offset = Offset(0, 0)
 
@@ -122,6 +129,17 @@ class CoinCollectorScenario(
         val dy = values[1].toIntOrNull() ?: return null
         return Offset(dx, dy)
     }
+
+    override fun toSnapshot(state: GameState): MatchSnapshot = MatchSnapshot(
+        round = state.round,
+        width = state.config.width,
+        height = state.config.height,
+        maxRounds = state.config.maxRounds,
+        bots = state.bots.map { b ->
+            BotView(id = b.id, name = b.name, x = b.position.x, y = b.position.y, score = b.score)
+        },
+        items = state.coins.map { c -> ItemView(type = "coin", x = c.x, y = c.y) }
+    )
 
     // Применение смещения на торическом поле; .mod() корректно обрабатывает отрицательные значения
     private fun resolvePosition(current: Position, offset: Offset): Position =

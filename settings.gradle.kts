@@ -4,4 +4,4 @@ plugins {
 
 rootProject.name = "arena"
 
-include("protocol", "server", "bots")
+include("protocol", "server", "bots", "web")

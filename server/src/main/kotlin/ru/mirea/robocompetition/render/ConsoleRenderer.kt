@@ -15,17 +15,17 @@ class ConsoleRenderer(
     private val stepDelayMs: Long = 300L
 ) : MatchListener<GameState> {
 
-    override fun onMatchStarted(state: GameState) {
+    override fun onMatchStarted(matchId: String, state: GameState) {
         render(state)
         Thread.sleep(stepDelayMs)
     }
 
-    override fun onRoundComplete(state: GameState) {
+    override fun onRoundComplete(matchId: String, state: GameState) {
         render(state)
         Thread.sleep(stepDelayMs)
     }
 
-    override fun onMatchOver(result: MatchResult) {
+    override fun onMatchOver(matchId: String, result: MatchResult) {
         println("=== МАТЧ ОКОНЧЕН ===")
         println("Match ID: ${result.matchId}")
         result.finalScores.entries

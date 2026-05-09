@@ -1,30 +1,37 @@
 package ru.mirea.robocompetition.lobby
 
 import ru.mirea.robocompetition.config.GameConfig
+import ru.mirea.robocompetition.events.BroadcastingMatchListener
+import ru.mirea.robocompetition.events.InMemoryMatchEventBus
+import ru.mirea.robocompetition.events.MatchEventBus
 import ru.mirea.robocompetition.games.coincollector.CoinCollectorScenario
+import ru.mirea.robocompetition.match.GameScenario
+import ru.mirea.robocompetition.match.MatchListener
 import ru.mirea.robocompetition.match.MatchRunner
 import ru.mirea.robocompetition.network.Message
 import ru.mirea.robocompetition.network.Session
 import ru.mirea.robocompetition.render.ConsoleRenderer
-import ru.mirea.robocompetition.storage.InMemoryMatchRepository
-import ru.mirea.robocompetition.storage.MatchRepository
 import java.io.IOException
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.UUID
 
 /**
  * Принимает TCP-подключения от ботов, обрабатывает регистрацию и передаёт
  * сессии в Lobby. Когда лобби набирает 4 ботов — запускает матч.
  *
- * Конфигурация игры зашита в коде (по требованию первой итерации).
- * Чтобы поддержать новую игру: реализовать GameScenario и добавить ветку
+ * События матчей публикует в [bus] — туда подписываются архив, веб-броадкастер
+ * и любые другие наблюдатели. Сам Server о них ничего не знает.
+ *
+ * Чтобы поддержать новую игру: реализовать [GameScenario] и добавить ветку
  * в [createScenarioFor].
  */
 class Server(
     private val port: Int = DEFAULT_PORT,
     private val matchSize: Int = DEFAULT_MATCH_SIZE,
     private val gameConfig: GameConfig = GameConfig(),
-    private val repository: MatchRepository = InMemoryMatchRepository(),
+    private val bus: MatchEventBus = InMemoryMatchEventBus(),
+    private val enableConsoleRenderer: Boolean = true,
     private val registerTimeoutMs: Int = 10_000
 ) {
 
@@ -91,23 +98,42 @@ class Server(
 
     private fun runMatch(game: String, bots: List<Pair<String, Session>>) {
         val scenario = createScenarioFor(game) ?: return
-        val sessions = bots.toMap()
-        println("Старт матча '$game' с ботами: ${bots.map { it.first }}")
+        val matchId = UUID.randomUUID().toString().substring(0, 8)
+        println("Старт матча '$game' (id=$matchId): ${bots.map { it.first }}")
 
-        val renderer = ConsoleRenderer()
-        val runner = MatchRunner(scenario, sessions, listeners = listOf(renderer))
+        @Suppress("UNCHECKED_CAST")
+        runMatchTyped(scenario as GameScenario<Any?, Any?>, bots, matchId, game)
+    }
+
+    private fun <S, M> runMatchTyped(
+        scenario: GameScenario<S, M>,
+        bots: List<Pair<String, Session>>,
+        matchId: String,
+        game: String
+    ) {
+        val sessions = bots.toMap()
+        val players = bots.map { it.first }
+
+        val listeners = buildList<MatchListener<S>> {
+            add(BroadcastingMatchListener(scenario, players, bus))
+            if (enableConsoleRenderer && game == CoinCollectorScenario.ID) {
+                @Suppress("UNCHECKED_CAST")
+                add(ConsoleRenderer() as MatchListener<S>)
+            }
+        }
+
+        val runner = MatchRunner(scenario, sessions, listeners = listeners, matchId = matchId)
         try {
-            val result = runner.run()
-            repository.save(result)
+            runner.run()
         } catch (e: Exception) {
-            println("Матч '$game' завершён с ошибкой: ${e.message}")
+            println("Матч '$game' (id=$matchId) завершён с ошибкой: ${e.message}")
             sessions.values.forEach { it.close() }
         }
     }
 
     // Точка расширения для новых игр: добавить ветку для нового id
-    private fun createScenarioFor(gameId: String) = when (gameId) {
-        "collector" -> CoinCollectorScenario(gameConfig)
+    private fun createScenarioFor(gameId: String): GameScenario<*, *>? = when (gameId) {
+        CoinCollectorScenario.ID -> CoinCollectorScenario(gameConfig)
         else -> null
     }
 

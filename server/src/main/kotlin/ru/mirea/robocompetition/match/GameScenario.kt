@@ -1,5 +1,6 @@
 package ru.mirea.robocompetition.match
 
+import ru.mirea.robocompetition.events.MatchSnapshot
 import ru.mirea.robocompetition.model.MatchResult
 import ru.mirea.robocompetition.network.Message
 
@@ -33,4 +34,10 @@ interface GameScenario<S, M> {
     fun formatUpdate(state: S, botName: String): Message
 
     fun parseMove(message: Message): M?
+
+    /**
+     * Преобразует внутреннее состояние игры в game-agnostic снимок для зрителей и архива.
+     * MatchRunner вызывает этот метод после каждого раунда.
+     */
+    fun toSnapshot(state: S): MatchSnapshot
 }
