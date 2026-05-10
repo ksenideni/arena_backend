@@ -5,6 +5,7 @@ import io.ktor.server.netty.Netty
 import ru.mirea.robocompetition.archive.Database
 import ru.mirea.robocompetition.archive.PostgresArchiveWriter
 import ru.mirea.robocompetition.archive.PostgresMatchArchive
+import ru.mirea.robocompetition.archive.PostgresMatchStats
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
 import ru.mirea.robocompetition.events.MatchEvent
@@ -34,6 +35,7 @@ fun main() {
 
     val dataSource = Database.start(Database.fromEnv())
     val archive = PostgresMatchArchive(dataSource)
+    val stats = PostgresMatchStats(dataSource)
 
     val bus = InMemoryMatchEventBus()
     val writer = PostgresArchiveWriter(dataSource, bus).start()
@@ -62,7 +64,7 @@ fun main() {
         ?: listOf("http://localhost:5173", "http://localhost:4173")
 
     embeddedServer(Netty, port = httpPort) {
-        webApp(archive = archive, broadcaster = broadcaster, corsAllowedOrigins = corsOrigins)
+        webApp(archive = archive, broadcaster = broadcaster, stats = stats, corsAllowedOrigins = corsOrigins)
     }.start(wait = false)
     println("HTTP/WS на порту $httpPort (CORS: $corsOrigins)")
 

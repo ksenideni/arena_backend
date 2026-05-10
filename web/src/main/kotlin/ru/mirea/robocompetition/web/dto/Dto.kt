@@ -68,6 +68,18 @@ data class MatchDetailDto(
     val result: MatchResultDto?
 )
 
+@Serializable
+data class LeaderboardEntryDto(
+    val player: String,
+    val gameId: String,
+    val matches: Int,
+    val wins: Int,
+    val draws: Int,
+    val totalScore: Int,
+    val avgScore: Double,
+    val winRate: Double
+)
+
 /**
  * Сообщения WebSocket от сервера к клиенту.
  *

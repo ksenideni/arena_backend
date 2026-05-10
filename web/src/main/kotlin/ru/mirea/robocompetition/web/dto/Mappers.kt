@@ -1,5 +1,6 @@
 package ru.mirea.robocompetition.web.dto
 
+import ru.mirea.robocompetition.archive.LeaderboardRow
 import ru.mirea.robocompetition.archive.MatchDetail
 import ru.mirea.robocompetition.archive.MatchStatus
 import ru.mirea.robocompetition.archive.MatchSummary
@@ -42,4 +43,15 @@ fun MatchDetail.toDto(): MatchDetailDto = MatchDetailDto(
     height = height,
     snapshots = snapshots.map { it.toDto() },
     result = result?.toDto()
+)
+
+fun LeaderboardRow.toDto(): LeaderboardEntryDto = LeaderboardEntryDto(
+    player = player,
+    gameId = gameId,
+    matches = matches,
+    wins = wins,
+    draws = draws,
+    totalScore = totalScore,
+    avgScore = avgScore,
+    winRate = winRate
 )

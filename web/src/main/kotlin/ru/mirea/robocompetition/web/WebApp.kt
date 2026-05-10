@@ -25,6 +25,7 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import ru.mirea.robocompetition.archive.MatchArchive
+import ru.mirea.robocompetition.archive.MatchStats
 import ru.mirea.robocompetition.web.dto.WsMessage
 import ru.mirea.robocompetition.web.dto.toDto
 import kotlin.time.Duration.Companion.seconds
@@ -41,6 +42,7 @@ import kotlin.time.Duration.Companion.seconds
 fun Application.webApp(
     archive: MatchArchive,
     broadcaster: MatchLiveBroadcaster,
+    stats: MatchStats,
     corsAllowedOrigins: List<String> = emptyList()
 ) {
     val json = Json {
@@ -88,6 +90,10 @@ fun Application.webApp(
         get("/api/matches") {
             val list = archive.listMatches().map { it.toDto() }
             call.respond(list)
+        }
+
+        get("/api/leaderboard") {
+            call.respond(stats.leaderboard().map { it.toDto() })
         }
 
         get("/api/matches/{id}") {
