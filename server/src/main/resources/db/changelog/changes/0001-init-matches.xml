@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0001-create-matches" author="arena">
+        <sql>
+            CREATE TABLE matches (
+                match_id       TEXT PRIMARY KEY,
+                game_id        TEXT NOT NULL,
+                players        TEXT[] NOT NULL,
+                status         TEXT NOT NULL CHECK (status IN ('ACTIVE','FINISHED')),
+                started_at     TIMESTAMPTZ NOT NULL,
+                finished_at    TIMESTAMPTZ,
+                current_round  INT NOT NULL,
+                max_rounds     INT NOT NULL,
+                width          INT NOT NULL,
+                height         INT NOT NULL,
+                winner         TEXT,
+                result         JSONB
+            );
+        </sql>
+        <sql>CREATE INDEX matches_started_at_desc_idx ON matches (started_at DESC);</sql>
+        <rollback>
+            <sql>DROP TABLE matches;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0002-create-match-snapshots" author="arena">
+        <sql>
+            CREATE TABLE match_snapshots (
+                match_id  TEXT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+                round     INT  NOT NULL,
+                payload   JSONB NOT NULL,
+                PRIMARY KEY (match_id, round)
+            );
+        </sql>
+        <rollback>
+            <sql>DROP TABLE match_snapshots;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

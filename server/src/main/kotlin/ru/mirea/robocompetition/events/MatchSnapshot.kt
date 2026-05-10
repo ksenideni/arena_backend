@@ -1,5 +1,7 @@
 package ru.mirea.robocompetition.events
 
+import kotlinx.serialization.Serializable
+
 /**
  * Game-agnostic снимок состояния матча в конкретном раунде.
  *
@@ -9,6 +11,7 @@ package ru.mirea.robocompetition.events
  * Поле [items] — обобщение для любых статичных объектов на поле (монеты, препятствия,
  * выходы лабиринта и т.п.). Конкретный смысл задаётся [ItemView.type].
  */
+@Serializable
 data class MatchSnapshot(
     val round: Int,
     val width: Int,
@@ -18,6 +21,7 @@ data class MatchSnapshot(
     val items: List<ItemView>
 )
 
+@Serializable
 data class BotView(
     val id: Int,
     val name: String,
@@ -27,6 +31,7 @@ data class BotView(
     val active: Boolean = true
 )
 
+@Serializable
 data class ItemView(
     val type: String,
     val x: Int,

@@ -43,3 +43,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Локальные CA-сертификаты для docker build (генерируются один раз) ###
+docker/extra-ca.crt

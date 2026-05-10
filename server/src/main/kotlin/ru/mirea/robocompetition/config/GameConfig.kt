@@ -1,5 +1,8 @@
 package ru.mirea.robocompetition.config
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class GameConfig(
     val width: Int = 10,
     val height: Int = 10,

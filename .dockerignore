@@ -1,0 +1,11 @@
+.gradle
+build
+**/build
+**/.gradle
+.idea
+.kotlin
+.git
+.gitignore
+*.log
+doc
+bots-python

@@ -2,7 +2,9 @@ package ru.mirea.robocompetition.web
 
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import ru.mirea.robocompetition.archive.InMemoryMatchArchive
+import ru.mirea.robocompetition.archive.Database
+import ru.mirea.robocompetition.archive.PostgresArchiveWriter
+import ru.mirea.robocompetition.archive.PostgresMatchArchive
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
 import ru.mirea.robocompetition.events.MatchEvent
@@ -15,12 +17,11 @@ import ru.mirea.robocompetition.lobby.Server
  * Поднимает:
  *  - HTTP/WS-сервер Ktor на порту 8080 (REST для фронта + WS для лайв-просмотра)
  *  - TCP-сервер ботов на порту 9000 (через :server.Server)
+ *  - PostgreSQL в качестве архива матчей: [PostgresArchiveWriter] пишет события
+ *    из шины асинхронно, [PostgresMatchArchive] обслуживает чтение API.
  *
- * Шина событий [InMemoryMatchEventBus] связывает их: Server публикует события
- * матча, архив их сохраняет, broadcaster раздаёт WebSocket-зрителям.
- *
- * Фронт деплоится отдельно (не входит в этот jar). Origins подключающихся
- * клиентов задаются через CORS_ALLOWED_ORIGINS (CSV).
+ * Параметры подключения к БД берутся из env: PG_URL, PG_USER, PG_PASSWORD.
+ * Schema-миграции применяются Liquibase на старте.
  */
 fun main() {
     val gameConfig = GameConfig(
@@ -31,12 +32,19 @@ fun main() {
         stepDelayMs = 0
     )
 
+    val dataSource = Database.start(Database.fromEnv())
+    val archive = PostgresMatchArchive(dataSource)
+
     val bus = InMemoryMatchEventBus()
-    val archive = InMemoryMatchArchive().also { it.subscribeTo(bus) }
+    val writer = PostgresArchiveWriter(dataSource, bus).start()
     val broadcaster = MatchLiveBroadcaster(archive).also { bus.register(it) }
 
-    // Опционально: искусственный delay между раундами для визуального демо
-    // (например, чтобы зритель успел увидеть "live"-матч в браузере).
+    Runtime.getRuntime().addShutdownHook(Thread {
+        try { writer.close() } catch (_: Throwable) {}
+        try { dataSource.close() } catch (_: Throwable) {}
+    })
+
+    // Опционально: искусственный delay между раундами для визуального демо.
     val slowMs = System.getenv("MATCH_STEP_MS")?.toLongOrNull() ?: 0L
     if (slowMs > 0) {
         bus.subscribe(MatchEventSubscriber {

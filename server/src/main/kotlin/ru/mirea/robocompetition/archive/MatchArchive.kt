@@ -11,8 +11,7 @@ import java.time.Instant
  * archive позволяет реализовать реплей и догон с начала матча для зрителей,
  * подключившихся посреди игры.
  *
- * Реализация по умолчанию — InMemoryMatchArchive. Для постоянного хранения
- * можно добавить SqliteMatchArchive — контракт остаётся тем же.
+ * Продакшн-реализация — PostgresMatchArchive (запись через PostgresArchiveWriter).
  */
 interface MatchArchive {
 

@@ -12,7 +12,6 @@ import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import ru.mirea.robocompetition.archive.InMemoryMatchArchive
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
 import ru.mirea.robocompetition.events.MatchEvent
@@ -125,9 +124,9 @@ class WebAppTest {
         }
     }
 
-    private fun setupArenaState(): Triple<InMemoryMatchEventBus, InMemoryMatchArchive, MatchLiveBroadcaster> {
+    private fun setupArenaState(): Triple<InMemoryMatchEventBus, FakeMatchArchive, MatchLiveBroadcaster> {
         val bus = InMemoryMatchEventBus()
-        val archive = InMemoryMatchArchive().also { it.subscribeTo(bus) }
+        val archive = FakeMatchArchive().also { it.subscribeTo(bus) }
         val broadcaster = MatchLiveBroadcaster(archive).also { bus.register(it) }
         return Triple(bus, archive, broadcaster)
     }
