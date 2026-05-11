@@ -22,7 +22,9 @@ abstract class BotClient(
     val name: String,
     private val host: String = DEFAULT_HOST,
     private val port: Int = DEFAULT_PORT,
-    private val game: String = "collector"
+    private val game: String = "collector",
+    private val login: String? = null,
+    private val password: String? = null
 ) {
 
     abstract fun decideMove(state: BotView): Offset
@@ -54,6 +56,8 @@ abstract class BotClient(
         session.write(Message.build("register") {
             add("name", name)
             add("game", game)
+            if (!login.isNullOrBlank()) add("login", login)
+            if (!password.isNullOrBlank()) add("password", password)
         })
 
         val started = session.read() ?: throw IOException("EOF до match_started")

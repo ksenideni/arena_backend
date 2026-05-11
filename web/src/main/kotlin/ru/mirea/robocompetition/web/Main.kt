@@ -6,6 +6,8 @@ import ru.mirea.robocompetition.archive.Database
 import ru.mirea.robocompetition.archive.PostgresArchiveWriter
 import ru.mirea.robocompetition.archive.PostgresMatchArchive
 import ru.mirea.robocompetition.archive.PostgresMatchStats
+import ru.mirea.robocompetition.auth.JwtIssuer
+import ru.mirea.robocompetition.auth.PostgresUserRepository
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
 import ru.mirea.robocompetition.events.MatchEvent
@@ -36,6 +38,8 @@ fun main() {
     val dataSource = Database.start(Database.fromEnv())
     val archive = PostgresMatchArchive(dataSource)
     val stats = PostgresMatchStats(dataSource)
+    val userRepo = PostgresUserRepository(dataSource)
+    val jwt = JwtIssuer.fromEnv()
 
     val bus = InMemoryMatchEventBus()
     val writer = PostgresArchiveWriter(dataSource, bus).start()
@@ -64,7 +68,14 @@ fun main() {
         ?: listOf("http://localhost:5173", "http://localhost:4173")
 
     embeddedServer(Netty, port = httpPort) {
-        webApp(archive = archive, broadcaster = broadcaster, stats = stats, corsAllowedOrigins = corsOrigins)
+        webApp(
+            archive = archive,
+            broadcaster = broadcaster,
+            stats = stats,
+            users = userRepo,
+            jwt = jwt,
+            corsAllowedOrigins = corsOrigins
+        )
     }.start(wait = false)
     println("HTTP/WS на порту $httpPort (CORS: $corsOrigins)")
 
@@ -74,6 +85,7 @@ fun main() {
         port = tcpPort,
         gameConfig = gameConfig,
         bus = bus,
+        users = userRepo,
         enableConsoleRenderer = false
     ).start()
 }

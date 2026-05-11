@@ -80,6 +80,30 @@ data class LeaderboardEntryDto(
     val winRate: Double
 )
 
+@Serializable
+data class UserDto(
+    val login: String,
+    val displayName: String,
+    val createdAt: String
+)
+
+@Serializable
+data class LoginRequestDto(val login: String, val password: String)
+
+@Serializable
+data class RegisterRequestDto(val login: String, val password: String, val displayName: String? = null)
+
+@Serializable
+data class AuthResponseDto(val token: String, val user: UserDto)
+
+@Serializable
+data class ProfileDto(
+    val user: UserDto,
+    val bots: List<String>,
+    val stats: List<LeaderboardEntryDto>,
+    val recentMatches: List<MatchSummaryDto>
+)
+
 /**
  * Сообщения WebSocket от сервера к клиенту.
  *

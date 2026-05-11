@@ -6,8 +6,10 @@ import kotlin.random.Random
 /** Каждый ход выбирает случайный из пяти стандартных векторов. */
 class RandomBotClient(
     name: String = "Random",
-    private val random: Random = Random.Default
-) : BotClient(name) {
+    private val random: Random = Random.Default,
+    login: String? = null,
+    password: String? = null
+) : BotClient(name, login = login, password = password) {
 
     private val moves = listOf(
         Offset(0, -1), Offset(0, 1), Offset(-1, 0), Offset(1, 0), Offset(0, 0)
@@ -18,5 +20,9 @@ class RandomBotClient(
 
 fun main(args: Array<String>) {
     val name = args.getOrNull(0) ?: "Random"
-    RandomBotClient(name).run()
+    RandomBotClient(
+        name,
+        login = System.getenv("BOT_LOGIN"),
+        password = System.getenv("BOT_PASSWORD")
+    ).run()
 }

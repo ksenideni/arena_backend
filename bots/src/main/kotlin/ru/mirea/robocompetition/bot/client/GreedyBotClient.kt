@@ -12,7 +12,11 @@ import kotlin.math.abs
  *  2. Из пяти кандидатов отфильтровать клетки, занятые другими ботами.
  *  3. Выбрать ход, который минимизирует расстояние до цели.
  */
-class GreedyBotClient(name: String = "Greedy") : BotClient(name) {
+class GreedyBotClient(
+    name: String = "Greedy",
+    login: String? = null,
+    password: String? = null
+) : BotClient(name, login = login, password = password) {
 
     private val moves = listOf(
         Offset(0, -1), Offset(0, 1), Offset(-1, 0), Offset(1, 0), Offset(0, 0)
@@ -58,5 +62,9 @@ class GreedyBotClient(name: String = "Greedy") : BotClient(name) {
 
 fun main(args: Array<String>) {
     val name = args.getOrNull(0) ?: "Greedy"
-    GreedyBotClient(name).run()
+    GreedyBotClient(
+        name,
+        login = System.getenv("BOT_LOGIN"),
+        password = System.getenv("BOT_PASSWORD")
+    ).run()
 }

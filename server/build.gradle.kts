@@ -17,6 +17,9 @@ dependencies {
     implementation("com.zaxxer:HikariCP:6.2.1")
     implementation("org.liquibase:liquibase-core:4.30.0")
 
+    implementation("at.favre.lib:bcrypt:0.10.2")
+    implementation("com.auth0:java-jwt:4.4.0")
+
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("org.testcontainers:postgresql:1.20.4")

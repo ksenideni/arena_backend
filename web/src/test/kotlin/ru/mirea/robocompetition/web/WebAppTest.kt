@@ -34,7 +34,15 @@ class WebAppTest {
     @Test
     fun `GET api matches returns active and finished`() = testApplication {
         val (bus, archive, broadcaster) = setupArenaState()
-        application { webApp(archive = archive, broadcaster = broadcaster, stats = FakeMatchStats(archive)) }
+        application {
+            webApp(
+                archive = archive,
+                broadcaster = broadcaster,
+                stats = FakeMatchStats(archive),
+                users = FakeUserRepository(),
+                jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            )
+        }
 
         bus.publish(startedEvent("M1", Instant.parse("2026-01-01T00:00:00Z")))
         bus.publish(startedEvent("M2", Instant.parse("2026-01-01T01:00:00Z")))
@@ -48,7 +56,15 @@ class WebAppTest {
     @Test
     fun `GET api matches id returns 404 for unknown`() = testApplication {
         val (_, archive, broadcaster) = setupArenaState()
-        application { webApp(archive = archive, broadcaster = broadcaster, stats = FakeMatchStats(archive)) }
+        application {
+            webApp(
+                archive = archive,
+                broadcaster = broadcaster,
+                stats = FakeMatchStats(archive),
+                users = FakeUserRepository(),
+                jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            )
+        }
 
         val client = createJsonClient()
         val response = client.get("/api/matches/nope")
@@ -58,7 +74,15 @@ class WebAppTest {
     @Test
     fun `GET api matches id returns full detail with snapshots`() = testApplication {
         val (bus, archive, broadcaster) = setupArenaState()
-        application { webApp(archive = archive, broadcaster = broadcaster, stats = FakeMatchStats(archive)) }
+        application {
+            webApp(
+                archive = archive,
+                broadcaster = broadcaster,
+                stats = FakeMatchStats(archive),
+                users = FakeUserRepository(),
+                jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            )
+        }
 
         bus.publish(startedEvent("M1", Instant.parse("2026-01-01T00:00:00Z")))
         bus.publish(MatchEvent.Round("M1", snapshot(round = 1)))
@@ -73,7 +97,15 @@ class WebAppTest {
     @Test
     fun `WebSocket sends history then live rounds then finished`() = testApplication {
         val (bus, archive, broadcaster) = setupArenaState()
-        application { webApp(archive = archive, broadcaster = broadcaster, stats = FakeMatchStats(archive)) }
+        application {
+            webApp(
+                archive = archive,
+                broadcaster = broadcaster,
+                stats = FakeMatchStats(archive),
+                users = FakeUserRepository(),
+                jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            )
+        }
 
         bus.publish(startedEvent("M1", Instant.parse("2026-01-01T00:00:00Z")))
         bus.publish(MatchEvent.Round("M1", snapshot(round = 1)))
@@ -104,7 +136,15 @@ class WebAppTest {
     @Test
     fun `WebSocket closes if match unknown`() = testApplication {
         val (_, archive, broadcaster) = setupArenaState()
-        application { webApp(archive = archive, broadcaster = broadcaster, stats = FakeMatchStats(archive)) }
+        application {
+            webApp(
+                archive = archive,
+                broadcaster = broadcaster,
+                stats = FakeMatchStats(archive),
+                users = FakeUserRepository(),
+                jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            )
+        }
 
         val client = createWsClient()
         client.webSocket("/api/matches/unknown/live") {

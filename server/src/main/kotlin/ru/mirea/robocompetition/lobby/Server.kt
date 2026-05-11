@@ -1,5 +1,6 @@
 package ru.mirea.robocompetition.lobby
 
+import ru.mirea.robocompetition.auth.UserRepository
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.BroadcastingMatchListener
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
@@ -31,6 +32,7 @@ class Server(
     private val matchSize: Int = DEFAULT_MATCH_SIZE,
     private val gameConfig: GameConfig = GameConfig(),
     private val bus: MatchEventBus = InMemoryMatchEventBus(),
+    private val users: UserRepository? = null,
     private val enableConsoleRenderer: Boolean = true,
     private val registerTimeoutMs: Int = 10_000
 ) {
@@ -67,6 +69,8 @@ class Server(
 
             val name = msg.string("name")
             val game = msg.string("game")
+            val login = msg.string("login")
+            val password = msg.string("password")
             if (name.isNullOrBlank() || game.isNullOrBlank()) {
                 writeError(session, "поле name или game не указано")
                 session.close()
@@ -77,6 +81,29 @@ class Server(
                 writeError(session, "неизвестная игра: $game")
                 session.close()
                 return
+            }
+
+            // Аутентификация бота: только если репозиторий подключён. В тестах
+            // мы создаём Server без UserRepository — там auth выключен.
+            if (users != null) {
+                if (login.isNullOrBlank() || password.isNullOrBlank()) {
+                    writeError(session, "поля login и password обязательны")
+                    session.close()
+                    return
+                }
+                val user = users.authenticate(login, password)
+                if (user == null) {
+                    writeError(session, "неверный login или password")
+                    session.close()
+                    return
+                }
+                try {
+                    users.claimBot(user.id, name)
+                } catch (e: IllegalStateException) {
+                    writeError(session, e.message ?: "bot занят")
+                    session.close()
+                    return
+                }
             }
 
             // снимаем регистрационный таймаут — дальше его выставит MatchRunner

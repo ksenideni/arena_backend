@@ -8,6 +8,17 @@ WORKDIR /src
 # и в JVM cacerts — иначе Gradle не может скачать плагины через MITM-прокси.
 # Если файла нет, шаг no-op.
 COPY docker/extra-ca.crt /tmp/extra-ca.crt
+#RUN set -eux; \
+#    if [ -s /tmp/extra-ca.crt ]; then \
+#      cp /tmp/extra-ca.crt /usr/local/share/ca-certificates/extra-ca.crt; \
+#      update-ca-certificates; \
+#      awk 'BEGIN{n=0} /BEGIN CERT/{n++; f=sprintf("/tmp/c%03d.pem", n)} {print > f}' /tmp/extra-ca.crt; \
+#      for f in /tmp/c*.pem; do \
+#        keytool -importcert -noprompt -trustcacerts -alias "extra-$(basename "$f" .pem)" -file "$f" -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit || true; \
+#      done; \
+#    fi; \
+#    rm -f /tmp/extra-ca.crt /tmp/c*.pem
+
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY protocol/build.gradle.kts protocol/
 COPY server/build.gradle.kts server/

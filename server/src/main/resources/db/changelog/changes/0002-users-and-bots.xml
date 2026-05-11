@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0003-extension-pgcrypto" author="arena">
+        <sql>CREATE
+        EXTENSION IF NOT EXISTS pgcrypto;</sql>
+        <rollback>
+            <sql>DROP EXTENSION IF EXISTS pgcrypto;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0004-create-users" author="arena">
+        <sql>
+            CREATE TABLE users
+            (
+                id            BIGSERIAL PRIMARY KEY,
+                login         TEXT        NOT NULL UNIQUE,
+                password_hash TEXT        NOT NULL,
+                display_name  TEXT        NOT NULL,
+                created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        </sql>
+        <rollback>
+            <sql>DROP TABLE users;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0005-create-user-bots" author="arena">
+        <sql>
+            CREATE TABLE user_bots
+            (
+                user_id    BIGINT      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+                bot_name   TEXT        NOT NULL UNIQUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, bot_name)
+            );
+        </sql>
+        <sql>CREATE INDEX user_bots_user_idx ON user_bots (user_id);</sql>
+        <rollback>
+            <sql>DROP TABLE user_bots;</sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

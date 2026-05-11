@@ -9,9 +9,11 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
+import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
@@ -26,6 +28,12 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import ru.mirea.robocompetition.archive.MatchArchive
 import ru.mirea.robocompetition.archive.MatchStats
+import ru.mirea.robocompetition.auth.JwtIssuer
+import ru.mirea.robocompetition.auth.UserRepository
+import ru.mirea.robocompetition.web.dto.AuthResponseDto
+import ru.mirea.robocompetition.web.dto.LoginRequestDto
+import ru.mirea.robocompetition.web.dto.ProfileDto
+import ru.mirea.robocompetition.web.dto.RegisterRequestDto
 import ru.mirea.robocompetition.web.dto.WsMessage
 import ru.mirea.robocompetition.web.dto.toDto
 import kotlin.time.Duration.Companion.seconds
@@ -43,6 +51,8 @@ fun Application.webApp(
     archive: MatchArchive,
     broadcaster: MatchLiveBroadcaster,
     stats: MatchStats,
+    users: UserRepository,
+    jwt: JwtIssuer,
     corsAllowedOrigins: List<String> = emptyList()
 ) {
     val json = Json {
@@ -82,6 +92,7 @@ fun Application.webApp(
                 allowHost(hostPort, schemes = listOf(scheme))
             }
             allowHeader(HttpHeaders.ContentType)
+            allowHeader(HttpHeaders.Authorization)
             allowCredentials = true
         }
     }
@@ -94,6 +105,54 @@ fun Application.webApp(
 
         get("/api/leaderboard") {
             call.respond(stats.leaderboard().map { it.toDto() })
+        }
+
+        post("/api/auth/register") {
+            val req = call.receive<RegisterRequestDto>()
+            val user = try {
+                users.create(req.login, req.password, req.displayName ?: req.login)
+            } catch (e: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, e.message ?: "bad request")
+                return@post
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.Conflict, "login уже занят")
+                return@post
+            }
+            call.respond(AuthResponseDto(token = jwt.issue(user), user = user.toDto()))
+        }
+
+        post("/api/auth/login") {
+            val req = call.receive<LoginRequestDto>()
+            val user = users.authenticate(req.login, req.password)
+            if (user == null) {
+                call.respond(HttpStatusCode.Unauthorized, "неверный login или password")
+                return@post
+            }
+            call.respond(AuthResponseDto(token = jwt.issue(user), user = user.toDto()))
+        }
+
+        get("/api/me/profile") {
+            val principal = call.requirePrincipal(jwt) ?: return@get
+            val user = users.findByLogin(principal.login)
+            if (user == null) {
+                call.respond(HttpStatusCode.Unauthorized, "user gone")
+                return@get
+            }
+            val bots = users.listBotsFor(user.id)
+            val allStats = stats.leaderboard()
+            val mine = allStats.filter { it.player in bots }.map { it.toDto() }
+            val recent = archive.listMatches()
+                .filter { summary -> summary.players.any { it in bots } }
+                .take(20)
+                .map { it.toDto() }
+            call.respond(
+                ProfileDto(
+                    user = user.toDto(),
+                    bots = bots,
+                    stats = mine,
+                    recentMatches = recent
+                )
+            )
         }
 
         get("/api/matches/{id}") {

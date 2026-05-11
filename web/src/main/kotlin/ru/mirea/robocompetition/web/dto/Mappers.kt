@@ -4,6 +4,7 @@ import ru.mirea.robocompetition.archive.LeaderboardRow
 import ru.mirea.robocompetition.archive.MatchDetail
 import ru.mirea.robocompetition.archive.MatchStatus
 import ru.mirea.robocompetition.archive.MatchSummary
+import ru.mirea.robocompetition.auth.User
 import ru.mirea.robocompetition.events.BotView
 import ru.mirea.robocompetition.events.ItemView
 import ru.mirea.robocompetition.events.MatchSnapshot
@@ -43,6 +44,12 @@ fun MatchDetail.toDto(): MatchDetailDto = MatchDetailDto(
     height = height,
     snapshots = snapshots.map { it.toDto() },
     result = result?.toDto()
+)
+
+fun User.toDto(): UserDto = UserDto(
+    login = login,
+    displayName = displayName,
+    createdAt = createdAt.toString()
 )
 
 fun LeaderboardRow.toDto(): LeaderboardEntryDto = LeaderboardEntryDto(
