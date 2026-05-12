@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 # ---------- Build stage ----------
 FROM gradle:9.2.1-jdk21 AS build
 WORKDIR /src

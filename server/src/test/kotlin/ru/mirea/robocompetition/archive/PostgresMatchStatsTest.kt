@@ -40,6 +40,12 @@ class PostgresMatchStatsTest {
             connectionTimeout = 10_000
         })
         Database.runMigrations(dataSource as DataSource, "db/changelog/changelog-master.xml")
+
+        // Регистрируем ботов, участвующих в тестах — FK требует их наличия в user_bots.
+        seedBot("Alice")
+        seedBot("Bob")
+        seedBot("Charlie")
+        seedBot("Diana")
     }
 
     @AfterAll
@@ -51,7 +57,8 @@ class PostgresMatchStatsTest {
     @BeforeEach
     fun cleanTables() {
         dataSource.connection.use { c ->
-            c.createStatement().use { it.execute("TRUNCATE match_snapshots, matches RESTART IDENTITY") }
+            // Truncate только matches — пользователи и боты создаются один раз в @BeforeAll.
+            c.createStatement().use { it.execute("TRUNCATE matches CASCADE") }
         }
     }
 
@@ -120,6 +127,25 @@ class PostgresMatchStatsTest {
             assertTrue(PostgresMatchStats(dataSource).leaderboard().isEmpty())
         } finally {
             writer.close()
+        }
+    }
+
+    private fun seedBot(name: String) {
+        dataSource.connection.use { conn ->
+            val userId = conn.prepareStatement(
+                "INSERT INTO users (login, password_hash, display_name) VALUES (?, 'test', ?) RETURNING id"
+            ).use { ps ->
+                ps.setString(1, name.lowercase())
+                ps.setString(2, name)
+                ps.executeQuery().use { rs -> rs.next(); rs.getLong(1) }
+            }
+            conn.prepareStatement(
+                "INSERT INTO user_bots (user_id, bot_name) VALUES (?, ?) ON CONFLICT DO NOTHING"
+            ).use { ps ->
+                ps.setLong(1, userId)
+                ps.setString(2, name)
+                ps.executeUpdate()
+            }
         }
     }
 

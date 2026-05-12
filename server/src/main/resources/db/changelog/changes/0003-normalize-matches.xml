@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0006-add-game-config-columns" author="arena">
+        <sql>
+            ALTER TABLE matches
+                ADD COLUMN coin_count    INT,
+                ADD COLUMN step_delay_ms BIGINT;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE matches
+                    DROP COLUMN IF EXISTS coin_count,
+                    DROP COLUMN IF EXISTS step_delay_ms;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0007-create-match-players" author="arena">
+        <sql>
+            CREATE TABLE match_players (
+                match_id    TEXT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+                position    INT  NOT NULL,
+                player_name TEXT NOT NULL,
+                PRIMARY KEY (match_id, position)
+            );
+        </sql>
+        <sql>CREATE INDEX match_players_match_idx ON match_players(match_id);</sql>
+        <rollback>
+            <sql>DROP TABLE match_players;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0008-create-match-scores" author="arena">
+        <sql>
+            CREATE TABLE match_scores (
+                match_id    TEXT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
+                player_name TEXT NOT NULL,
+                score       INT  NOT NULL,
+                PRIMARY KEY (match_id, player_name)
+            );
+        </sql>
+        <rollback>
+            <sql>DROP TABLE match_scores;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0009-migrate-existing-data" author="arena">
+        <!-- players[] → match_players -->
+        <sql>
+            INSERT INTO match_players (match_id, position, player_name)
+            SELECT m.match_id, (t.ordinality - 1)::int, t.player_name
+              FROM matches m,
+                   LATERAL unnest(m.players) WITH ORDINALITY AS t(player_name, ordinality)
+             WHERE m.players IS NOT NULL;
+        </sql>
+        <!-- result->'finalScores' → match_scores -->
+        <sql>
+            INSERT INTO match_scores (match_id, player_name, score)
+            SELECT m.match_id, kv.key, kv.value::int
+              FROM matches m,
+                   LATERAL jsonb_each_text(m.result -> 'finalScores') AS kv(key, value)
+             WHERE m.result IS NOT NULL
+               AND m.result -> 'finalScores' IS NOT NULL;
+        </sql>
+        <!-- result->'config' → coin_count, step_delay_ms -->
+        <sql>
+            UPDATE matches
+               SET coin_count    = (result -> 'config' ->> 'coinCount')::int,
+                   step_delay_ms = (result -> 'config' ->> 'stepDelayMs')::bigint
+             WHERE result IS NOT NULL
+               AND result -> 'config' IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DELETE FROM match_players;</sql>
+            <sql>DELETE FROM match_scores;</sql>
+            <sql>UPDATE matches SET coin_count = NULL, step_delay_ms = NULL;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="0010-drop-json-columns" author="arena">
+        <sql>
+            ALTER TABLE matches
+                DROP COLUMN players,
+                DROP COLUMN result;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE matches
+                    ADD COLUMN players TEXT[],
+                    ADD COLUMN result   JSONB;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

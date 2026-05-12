@@ -69,8 +69,8 @@ class PostgresArchiveWriter(
 
     private fun writeEvent(conn: Connection, event: MatchEvent) {
         when (event) {
-            is MatchEvent.Started -> insertMatch(conn, event)
-            is MatchEvent.Round -> insertSnapshot(conn, event)
+            is MatchEvent.Started  -> insertMatch(conn, event)
+            is MatchEvent.Round    -> insertSnapshot(conn, event)
             is MatchEvent.Finished -> finishMatch(conn, event)
         }
     }
@@ -78,24 +78,24 @@ class PostgresArchiveWriter(
     private fun insertMatch(conn: Connection, event: MatchEvent.Started) {
         conn.autoCommit = false
         try {
-            val matchSql = """
+            conn.prepareStatement("""
                 INSERT INTO matches
-                    (match_id, game_id, players, status, started_at, finished_at,
-                     current_round, max_rounds, width, height, winner, result)
-                VALUES (?, ?, ?, 'ACTIVE', ?, NULL, ?, ?, ?, ?, NULL, NULL)
+                    (match_id, game_id, status, started_at, finished_at,
+                     current_round, max_rounds, width, height, winner)
+                VALUES (?, ?, 'ACTIVE', ?, NULL, ?, ?, ?, ?, NULL)
                 ON CONFLICT (match_id) DO NOTHING
-            """.trimIndent()
-            conn.prepareStatement(matchSql).use { ps ->
+            """.trimIndent()).use { ps ->
                 ps.setString(1, event.matchId)
                 ps.setString(2, event.gameId)
-                ps.setArray(3, conn.createArrayOf("text", event.players.toTypedArray()))
-                ps.setTimestamp(4, java.sql.Timestamp.from(event.startedAt))
-                ps.setInt(5, event.initialSnapshot.round)
-                ps.setInt(6, event.maxRounds)
-                ps.setInt(7, event.width)
-                ps.setInt(8, event.height)
+                ps.setTimestamp(3, java.sql.Timestamp.from(event.startedAt))
+                ps.setInt(4, event.initialSnapshot.round)
+                ps.setInt(5, event.maxRounds)
+                ps.setInt(6, event.width)
+                ps.setInt(7, event.height)
                 ps.executeUpdate()
             }
+
+            insertPlayers(conn, event.matchId, event.players)
 
             insertSnapshotRow(conn, event.matchId, event.initialSnapshot.round, ArchiveJson.encodeToString(
                 ru.mirea.robocompetition.events.MatchSnapshot.serializer(), event.initialSnapshot
@@ -106,6 +106,22 @@ class PostgresArchiveWriter(
             throw t
         } finally {
             conn.autoCommit = true
+        }
+    }
+
+    private fun insertPlayers(conn: Connection, matchId: String, players: List<String>) {
+        conn.prepareStatement("""
+            INSERT INTO match_players (match_id, position, player_name)
+            VALUES (?, ?, ?)
+            ON CONFLICT (match_id, position) DO NOTHING
+        """.trimIndent()).use { ps ->
+            players.forEachIndexed { index, name ->
+                ps.setString(1, matchId)
+                ps.setInt(2, index)
+                ps.setString(3, name)
+                ps.addBatch()
+            }
+            ps.executeBatch()
         }
     }
 
@@ -132,12 +148,11 @@ class PostgresArchiveWriter(
     }
 
     private fun insertSnapshotRow(conn: Connection, matchId: String, round: Int, payloadJson: String) {
-        val sql = """
+        conn.prepareStatement("""
             INSERT INTO match_snapshots (match_id, round, payload)
             VALUES (?, ?, ?)
             ON CONFLICT (match_id, round) DO NOTHING
-        """.trimIndent()
-        conn.prepareStatement(sql).use { ps ->
+        """.trimIndent()).use { ps ->
             ps.setString(1, matchId)
             ps.setInt(2, round)
             ps.setObject(3, jsonbOf(payloadJson))
@@ -146,22 +161,50 @@ class PostgresArchiveWriter(
     }
 
     private fun finishMatch(conn: Connection, event: MatchEvent.Finished) {
-        val sql = """
-            UPDATE matches
-               SET status = 'FINISHED',
-                   finished_at = ?,
-                   winner = ?,
-                   result = ?
-             WHERE match_id = ?
-        """.trimIndent()
-        conn.prepareStatement(sql).use { ps ->
-            ps.setTimestamp(1, java.sql.Timestamp.from(event.finishedAt))
-            ps.setString(2, event.result.winner)
-            ps.setObject(3, jsonbOf(ArchiveJson.encodeToString(
-                ru.mirea.robocompetition.model.MatchResult.serializer(), event.result
-            )))
-            ps.setString(4, event.matchId)
-            ps.executeUpdate()
+        conn.autoCommit = false
+        try {
+            conn.prepareStatement("""
+                UPDATE matches
+                   SET status        = 'FINISHED',
+                       finished_at   = ?,
+                       winner        = ?,
+                       coin_count    = ?,
+                       step_delay_ms = ?,
+                       current_round = ?
+                 WHERE match_id = ?
+            """.trimIndent()).use { ps ->
+                ps.setTimestamp(1, java.sql.Timestamp.from(event.finishedAt))
+                ps.setString(2, event.result.winner)
+                ps.setInt(3, event.result.config.coinCount)
+                ps.setLong(4, event.result.config.stepDelayMs)
+                ps.setInt(5, event.result.rounds)
+                ps.setString(6, event.matchId)
+                ps.executeUpdate()
+            }
+
+            insertScores(conn, event.matchId, event.result.finalScores)
+            conn.commit()
+        } catch (t: Throwable) {
+            conn.rollback()
+            throw t
+        } finally {
+            conn.autoCommit = true
+        }
+    }
+
+    private fun insertScores(conn: Connection, matchId: String, scores: Map<String, Int>) {
+        conn.prepareStatement("""
+            INSERT INTO match_scores (match_id, player_name, score)
+            VALUES (?, ?, ?)
+            ON CONFLICT (match_id, player_name) DO UPDATE SET score = EXCLUDED.score
+        """.trimIndent()).use { ps ->
+            scores.forEach { (player, score) ->
+                ps.setString(1, matchId)
+                ps.setString(2, player)
+                ps.setInt(3, score)
+                ps.addBatch()
+            }
+            ps.executeBatch()
         }
     }
 

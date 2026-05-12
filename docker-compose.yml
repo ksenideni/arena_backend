@@ -17,7 +17,7 @@ services:
 
   arena:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
     depends_on:
       postgres:

@@ -33,9 +33,6 @@ class PostgresMatchArchiveTest {
             .withPassword("arena")
         postgres.start()
 
-        // Под Colima/Docker Desktop bridge port-forwarding иногда подключается
-        // на ~1 секунду позже, чем Testcontainers возвращается из start().
-        // Прокручиваем JDBC-пинг до 30 сек, чтобы тест был стабилен.
         waitForJdbc(postgres.jdbcUrl, postgres.username, postgres.password, timeoutMs = 30_000)
 
         dataSource = HikariDataSource(HikariConfig().apply {
@@ -47,6 +44,10 @@ class PostgresMatchArchiveTest {
             connectionTimeout = 10_000
         })
         Database.runMigrations(dataSource as DataSource, "db/changelog/changelog-master.xml")
+
+        // Регистрируем ботов, участвующих в тестах — FK требует их наличия в user_bots.
+        seedBot("a")
+        seedBot("b")
     }
 
     private fun waitForJdbc(url: String, user: String, pass: String, timeoutMs: Long) {
@@ -73,7 +74,8 @@ class PostgresMatchArchiveTest {
     @BeforeEach
     fun cleanTables() {
         dataSource.connection.use { c ->
-            c.createStatement().use { it.execute("TRUNCATE match_snapshots, matches RESTART IDENTITY") }
+            // Truncate только matches — пользователи и боты создаются один раз в @BeforeAll.
+            c.createStatement().use { it.execute("TRUNCATE matches CASCADE") }
         }
     }
 
@@ -110,7 +112,8 @@ class PostgresMatchArchiveTest {
 
             val finishTime = Instant.parse("2026-01-01T00:01:00Z")
             val result = MatchResult(
-                matchId = "M1", timestamp = finishTime, config = GameConfig(),
+                matchId = "M1", timestamp = finishTime,
+                config = GameConfig(width = 8, height = 8, coinCount = 15, maxRounds = 5, stepDelayMs = 500L),
                 finalScores = mapOf("a" to 3, "b" to 1), winner = "a", rounds = 5
             )
             bus.publish(MatchEvent.Finished("M1", result, finishTime))
@@ -170,6 +173,25 @@ class PostgresMatchArchiveTest {
             assertTrue(archive.listMatches().single().matchId == "M1")
         } finally {
             writer.close()
+        }
+    }
+
+    private fun seedBot(name: String) {
+        dataSource.connection.use { conn ->
+            val userId = conn.prepareStatement(
+                "INSERT INTO users (login, password_hash, display_name) VALUES (?, 'test', ?) RETURNING id"
+            ).use { ps ->
+                ps.setString(1, name)
+                ps.setString(2, name)
+                ps.executeQuery().use { rs -> rs.next(); rs.getLong(1) }
+            }
+            conn.prepareStatement(
+                "INSERT INTO user_bots (user_id, bot_name) VALUES (?, ?) ON CONFLICT DO NOTHING"
+            ).use { ps ->
+                ps.setLong(1, userId)
+                ps.setString(2, name)
+                ps.executeUpdate()
+            }
         }
     }
 
