@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="0012-competition-periods" author="arena">
+        <sql>
+            CREATE TABLE competition_periods (
+                id            TEXT PRIMARY KEY,
+                name          TEXT NOT NULL,
+                period_unit   TEXT NOT NULL DEFAULT 'DAY',
+                periods_count INT  NOT NULL DEFAULT 7,
+                started_at    TIMESTAMPTZ NOT NULL
+            );
+        </sql>
+        <sql>
+            ALTER TABLE matches
+                ADD COLUMN period_id  TEXT REFERENCES competition_periods(id) ON DELETE SET NULL,
+                ADD COLUMN period_day INT;
+        </sql>
+        <sql>CREATE INDEX matches_period_idx ON matches (period_id, period_day);</sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS matches_period_idx;</sql>
+            <sql>ALTER TABLE matches DROP COLUMN IF EXISTS period_id, DROP COLUMN IF EXISTS period_day;</sql>
+            <sql>DROP TABLE IF EXISTS competition_periods;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -104,6 +104,31 @@ data class ProfileDto(
     val recentMatches: List<MatchSummaryDto>
 )
 
+@Serializable
+data class CompetitionPeriodDto(
+    val id: String,
+    val name: String,
+    val periodUnit: String,
+    val periodsCount: Int,
+    val startedAt: String
+)
+
+@Serializable
+data class BotPeriodRatingDto(
+    val bot: String,
+    val rTop: Int,
+    val rWeighted: Double,
+    val rElo: Double,
+    val totalScore: Int,
+    val rank: Int
+)
+
+@Serializable
+data class PeriodRatingDto(
+    val period: CompetitionPeriodDto,
+    val ratings: List<BotPeriodRatingDto>
+)
+
 /**
  * Сообщения WebSocket от сервера к клиенту.
  *

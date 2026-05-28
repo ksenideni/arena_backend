@@ -6,6 +6,7 @@ import ru.mirea.robocompetition.archive.Database
 import ru.mirea.robocompetition.archive.PostgresArchiveWriter
 import ru.mirea.robocompetition.archive.PostgresMatchArchive
 import ru.mirea.robocompetition.archive.PostgresMatchStats
+import ru.mirea.robocompetition.archive.PostgresRatingService
 import ru.mirea.robocompetition.auth.JwtIssuer
 import ru.mirea.robocompetition.auth.PostgresUserRepository
 import ru.mirea.robocompetition.config.GameConfig
@@ -38,6 +39,7 @@ fun main() {
     val dataSource = Database.start(Database.fromEnv())
     val archive = PostgresMatchArchive(dataSource)
     val stats = PostgresMatchStats(dataSource)
+    val ratingService = PostgresRatingService(dataSource)
     val userRepo = PostgresUserRepository(dataSource)
     val jwt = JwtIssuer.fromEnv()
 
@@ -72,6 +74,7 @@ fun main() {
             archive = archive,
             broadcaster = broadcaster,
             stats = stats,
+            rating = ratingService,
             users = userRepo,
             jwt = jwt,
             corsAllowedOrigins = corsOrigins

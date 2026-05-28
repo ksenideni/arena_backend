@@ -1,9 +1,12 @@
 package ru.mirea.robocompetition.web.dto
 
+import ru.mirea.robocompetition.archive.BotPeriodRating
+import ru.mirea.robocompetition.archive.CompetitionPeriod
 import ru.mirea.robocompetition.archive.LeaderboardRow
 import ru.mirea.robocompetition.archive.MatchDetail
 import ru.mirea.robocompetition.archive.MatchStatus
 import ru.mirea.robocompetition.archive.MatchSummary
+import ru.mirea.robocompetition.archive.PeriodRating
 import ru.mirea.robocompetition.auth.User
 import ru.mirea.robocompetition.events.BotView
 import ru.mirea.robocompetition.events.ItemView
@@ -61,4 +64,26 @@ fun LeaderboardRow.toDto(): LeaderboardEntryDto = LeaderboardEntryDto(
     totalScore = totalScore,
     avgScore = avgScore,
     winRate = winRate
+)
+
+fun CompetitionPeriod.toDto() = CompetitionPeriodDto(
+    id = id,
+    name = name,
+    periodUnit = periodUnit,
+    periodsCount = periodsCount,
+    startedAt = startedAt.toString()
+)
+
+fun BotPeriodRating.toDto() = BotPeriodRatingDto(
+    bot = bot,
+    rTop = rTop,
+    rWeighted = rWeighted,
+    rElo = rElo,
+    totalScore = totalScore,
+    rank = rank
+)
+
+fun PeriodRating.toDto() = PeriodRatingDto(
+    period = period.toDto(),
+    ratings = ratings.map { it.toDto() }
 )

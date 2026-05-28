@@ -9,5 +9,6 @@
     <include file="db/changelog/changes/0002-users-and-bots.xml"/>
     <include file="db/changelog/changes/0003-normalize-matches.xml"/>
     <include file="db/changelog/changes/0004-match-players-bot-fk.xml"/>
+    <include file="db/changelog/changes/0005-competition-periods.xml"/>
 
 </databaseChangeLog>

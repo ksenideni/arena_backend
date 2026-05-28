@@ -28,6 +28,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import ru.mirea.robocompetition.archive.MatchArchive
 import ru.mirea.robocompetition.archive.MatchStats
+import ru.mirea.robocompetition.archive.RatingService
 import ru.mirea.robocompetition.auth.JwtIssuer
 import ru.mirea.robocompetition.auth.UserRepository
 import ru.mirea.robocompetition.web.dto.AuthResponseDto
@@ -51,6 +52,7 @@ fun Application.webApp(
     archive: MatchArchive,
     broadcaster: MatchLiveBroadcaster,
     stats: MatchStats,
+    rating: RatingService,
     users: UserRepository,
     jwt: JwtIssuer,
     corsAllowedOrigins: List<String> = emptyList()
@@ -105,6 +107,24 @@ fun Application.webApp(
 
         get("/api/leaderboard") {
             call.respond(stats.leaderboard().map { it.toDto() })
+        }
+
+        get("/api/rating/periods") {
+            call.respond(rating.listPeriods().map { it.toDto() })
+        }
+
+        get("/api/rating/periods/{id}") {
+            val id = call.parameters["id"]
+            if (id.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "missing id")
+                return@get
+            }
+            val result = rating.getRatings(id)
+            if (result == null) {
+                call.respond(HttpStatusCode.NotFound, "period not found")
+                return@get
+            }
+            call.respond(result.toDto())
         }
 
         post("/api/auth/register") {

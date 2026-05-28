@@ -10,8 +10,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.testApplication
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import ru.mirea.robocompetition.archive.BotPeriodRating
+import ru.mirea.robocompetition.archive.CompetitionPeriod
+import ru.mirea.robocompetition.archive.PeriodRating
+import ru.mirea.robocompetition.archive.RatingService
 import ru.mirea.robocompetition.config.GameConfig
 import ru.mirea.robocompetition.events.InMemoryMatchEventBus
 import ru.mirea.robocompetition.events.MatchEvent
@@ -27,9 +30,15 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private class FakeRatingService : RatingService {
+    override fun listPeriods(): List<CompetitionPeriod> = emptyList()
+    override fun getRatings(periodId: String): PeriodRating? = null
+}
+
 class WebAppTest {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val fakeRating = FakeRatingService()
 
     @Test
     fun `GET api matches returns active and finished`() = testApplication {
@@ -39,6 +48,7 @@ class WebAppTest {
                 archive = archive,
                 broadcaster = broadcaster,
                 stats = FakeMatchStats(archive),
+                rating = fakeRating,
                 users = FakeUserRepository(),
                 jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             )
@@ -61,6 +71,7 @@ class WebAppTest {
                 archive = archive,
                 broadcaster = broadcaster,
                 stats = FakeMatchStats(archive),
+                rating = fakeRating,
                 users = FakeUserRepository(),
                 jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             )
@@ -79,6 +90,7 @@ class WebAppTest {
                 archive = archive,
                 broadcaster = broadcaster,
                 stats = FakeMatchStats(archive),
+                rating = fakeRating,
                 users = FakeUserRepository(),
                 jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             )
@@ -102,6 +114,7 @@ class WebAppTest {
                 archive = archive,
                 broadcaster = broadcaster,
                 stats = FakeMatchStats(archive),
+                rating = fakeRating,
                 users = FakeUserRepository(),
                 jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             )
@@ -112,19 +125,16 @@ class WebAppTest {
 
         val client = createWsClient()
         client.webSocket("/api/matches/M1/live") {
-            // 1) history
             val history = receiveDeserialized<WsMessage>()
             val h = assertIs<WsMessage.History>(history)
             assertEquals("M1", h.matchId)
             assertEquals(listOf(0, 1), h.snapshots.map { it.round })
 
-            // 2) после подключения публикуем новые события
             bus.publish(MatchEvent.Round("M1", snapshot(round = 2)))
             val round = receiveDeserialized<WsMessage>()
             val r = assertIs<WsMessage.Round>(round)
             assertEquals(2, r.snapshot.round)
 
-            // 3) finished
             bus.publish(MatchEvent.Finished("M1", finishedResult("M1"), Instant.parse("2026-01-01T00:05:00Z")))
             val fin = receiveDeserialized<WsMessage>()
             val f = assertIs<WsMessage.Finished>(fin)
@@ -141,6 +151,7 @@ class WebAppTest {
                 archive = archive,
                 broadcaster = broadcaster,
                 stats = FakeMatchStats(archive),
+                rating = fakeRating,
                 users = FakeUserRepository(),
                 jwt = ru.mirea.robocompetition.auth.JwtIssuer(secret = "test-secret-xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
             )
@@ -148,7 +159,6 @@ class WebAppTest {
 
         val client = createWsClient()
         client.webSocket("/api/matches/unknown/live") {
-            // сервер должен отправить close и завершить
             val reason = closeReason.await()
             assertNotNull(reason)
         }
